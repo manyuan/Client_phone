@@ -16,6 +16,8 @@
 
 package com.geniatech.client_phone.wifi;
 
+import com.geniatech.client_phone.Config;
+import com.geniatech.client_phone.PhoneActivity;
 import com.geniatech.client_phone.R;
 
 import android.content.BroadcastReceiver;
@@ -41,6 +43,7 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
 import android.provider.Settings.Secure;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Menu;
@@ -154,7 +157,7 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
             enableNetworks();
         }
     }
-
+/*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         menu.add(Menu.NONE, MENU_ID_SCAN, 0, R.string.wifi_menu_scan)
@@ -163,7 +166,7 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
                 .setIcon(android.R.drawable.ic_menu_manage);
         return super.onCreateOptionsMenu(menu);
     }
-
+*/
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -465,6 +468,9 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         }
     }
 
+    public static boolean isBoxDevice(String ssid){
+    	return ssid.contains("BOX_");
+    }
     private class Scanner extends Handler {
         private int mRetry = 0;
 
