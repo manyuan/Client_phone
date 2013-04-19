@@ -4,7 +4,7 @@ public class Config{
 	public static final boolean DEBUG=true;
 	
 	public static final String MULTICAST_HOST = "224.0.0.0";
-	public static final String MULTICAST_SEND_HOST = "192.168.1.255";
+	//public static final String MULTICAST_SEND_HOST = "192.168.1.255";
 	public static final int MULTICAST_PORT = 65501;
 	public static final int DATA_PORT = 65502;
 	
@@ -31,4 +31,6 @@ public class Config{
 	
 	public static final String CMD_PHONE_REQUEST_ID = "rqtID";
 	public static final String CMD_PHONE_IP = "phnIP";
+	
+	public static final String CMD_TEST = "test";
 }

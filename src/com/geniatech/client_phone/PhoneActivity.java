@@ -16,6 +16,7 @@ import java.util.List;
 
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.MulticastLock;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -32,11 +33,14 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class PhoneActivity extends Activity {
 	private static final String TAG = "PhoneActivity";
 	public static final int MSG_REMOTE_INFO = 0;
 	public static final int MSG_START_REFRESH = 1;
+	public static final int MSG_REFRESH_UI = 2;
+	public static final int MSG_CONNECT_ERROR = 3;
 	
 	public static boolean mIsNetThreadRun=true;
 	private WifiManager mWifiManager;
@@ -50,6 +54,7 @@ public class PhoneActivity extends Activity {
 	private List<String> mListBoxs;
 	private ArrayAdapter<String> mListAdapter;
 	DatagramSocket mMultiListenSocket = null;
+	private boolean mUpdateList = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +76,7 @@ public class PhoneActivity extends Activity {
 	protected void onDestroy() {
 		mMultiLock.release();
 		mPhoneHandle.removeMessages(MSG_START_REFRESH);
+		mPhoneHandle.removeMessages(MSG_REFRESH_UI);
 		if(mMultiListenSocket!=null){
 			mMultiListenSocket.disconnect();
 			mMultiListenSocket.close();
@@ -91,9 +97,14 @@ public class PhoneActivity extends Activity {
 		mRefreshBtn = (Button)findViewById(R.id.button1);
 		mRefreshBtn.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
-				mTextView.setText("sent: "+Config.CMD_PHONE_REQUEST_ID);
+				mTextView.setText("Current AP is:  "+WifiUtils.getBroadcastIp());
 				//sendCmdData("192.168.1.244","abcdefg1234567");
+				//sendCmdData("192.168.43.1", "abcdeffffffff");
+				mListBoxs.clear();
+				mListBoxs.add("box devices:");
+				mListAdapter.notifyDataSetChanged();
 				sendMulticast(Config.CMD_PHONE_REQUEST_ID);
+				
 			}
 		});
 		mListWifiBtn = (Button)findViewById(R.id.button2);
@@ -103,8 +114,6 @@ public class PhoneActivity extends Activity {
 			}
 		});
 		mTextView = (TextView)findViewById(R.id.textView1);
-		if(WifiUtils.isWifiConnected()) mTextView.setText("WIFI connected.");
-		else mTextView.setText("please connect one WIFI access point not connected.");
 	}
 	public void multicastListen(){
 		new Thread(new Runnable() {
@@ -163,7 +172,7 @@ public class PhoneActivity extends Activity {
 	public static void sendMulticast(String info){
 		final String str = info;
 		new Thread(new Runnable() {
-			Multicastsender ms = new Multicastsender(str, Config.MULTICAST_SEND_HOST, Config.MULTICAST_PORT);
+			Multicastsender ms = new Multicastsender(str, WifiUtils.getBroadcastIp(), Config.MULTICAST_PORT);
 			@Override
 			public void run() {
 		        ms.send();
@@ -171,40 +180,52 @@ public class PhoneActivity extends Activity {
 			}
 		}).start();
 	}
-	public static void sendCmdData(String ip,String info){
+	public boolean sendCmdData_r(String ip,String info,int i){
+		NetAsyncTask task = new NetAsyncTask(ip, info, this);
+		task.execute(1);
+		return true;
+		/*
 		final String str = info;
 		final String ip_ = ip;
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-		        Socket socket = null;  
-		        BufferedReader br = null;  
-		        PrintWriter pw = null;  
-		        try {
-		            socket = new Socket(ip_, Config.DATA_PORT);  
-		            if(Config.DEBUG) Log.i(TAG,"--------------------------Socket=" + socket);
-		            br = new BufferedReader(new InputStreamReader(  
-		                    socket.getInputStream()));  
-		            pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(  
-		                    socket.getOutputStream())));  
-	                pw.println(str);  
-	                pw.flush();
-	                if(Config.DEBUG) Log.i(TAG,"--------------------------send data:"+ str);
-		        } catch (Exception e) {
-		            e.printStackTrace();
-		        } finally {
-		            try {
-		                System.out.println("close......");
-		                if(br!=null) br.close();
-		                if(pw!=null) pw.close();
-		                if(socket!=null) socket.close();
-		            } catch (IOException e) {
-		                // TODO Auto-generated catch block  
-		                e.printStackTrace();  
-		            }  
-		        }
+				sendCmdData_r(ip_,str,0);
 			}
 		}).start();
+		*/
+	}
+	private static boolean sendCmdData_rr(String ip,String info,int timeout){
+		boolean isSend = true;
+        Socket socket = null;  
+        BufferedReader br = null;  
+        PrintWriter pw = null;  
+        try {
+            socket = new Socket(ip, Config.DATA_PORT);
+            socket.setSoTimeout(timeout);
+            if(Config.DEBUG) Log.i(TAG,"--------------------------Socket=" + socket);
+            br = new BufferedReader(new InputStreamReader(  
+                    socket.getInputStream()));  
+            pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(  
+                    socket.getOutputStream())));  
+            pw.println(info);  
+            pw.flush();
+            if(Config.DEBUG) Log.i(TAG,"--------------------------send data:"+ info);
+        } catch (Exception e) {
+            e.printStackTrace();
+            isSend = false;
+        } finally {
+            try {
+                System.out.println("close......");
+                if(br!=null) br.close();
+                if(pw!=null) pw.close();
+                if(socket!=null) socket.close();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block  
+                e.printStackTrace();  
+            }  
+        }
+        return isSend;
 	}
 	private void openWifiList(){
 		Intent intent = new Intent();
@@ -216,7 +237,7 @@ public class PhoneActivity extends Activity {
         String message = null;
         
         try {
-            InetAddress ip = InetAddress.getByName(Config.MULTICAST_SEND_HOST);
+            //InetAddress ip = InetAddress.getByName(Config.MULTICAST_SEND_HOST);
             mMultiListenSocket = new DatagramSocket(Config.MULTICAST_PORT);
             //mMultiListenSocket.setSoTimeout(Config.LISTEN_TIME_OUT);
             
@@ -237,6 +258,7 @@ public class PhoneActivity extends Activity {
 		public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
 				long arg3) {
 			if(Config.DEBUG) Log.i(TAG,"==========listView===arg2:"+arg2+"===arg3:"+arg3);
+			if(arg2==0) return;
 			String str = mListBoxs.get(arg2);
 			MsgUtils msg = new MsgUtils(str);
 			String ip = msg.getInfo(Config.CMD_BOX_IP);
@@ -250,14 +272,72 @@ public class PhoneActivity extends Activity {
 		builder.setNegativeButton("cancel", null);
 		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int which) {
-				sendCmdChang2ap(ipAddress);
+				sendCmdChang2ap(mPhoneHandle,ipAddress);
 			}
 		});
 		builder.create().show();
 	}
-	private void sendCmdChang2ap(String ip){
-		sendCmdData(ip, Config.CMD_BOX_WIFI_2_AP);
+	private void sendCmdChang2ap_r(Handler handle,String ip){
+		final Handler h = handle;
+		final String ip_ = ip;
+		new Thread(new Runnable() {
+			public void run() {
+				boolean isOk = sendCmdData_r(ip_, Config.CMD_BOX_WIFI_2_AP,Config.LISTEN_TIME_OUT);
+				if(!isOk) h.sendEmptyMessage(MSG_CONNECT_ERROR);
+			}
+		}).start();
+		
 	}
+	private void sendCmdChang2ap(Handler handle,String ip){
+		final Handler h = handle;
+		final String ip_ = ip;
+				boolean isOk = sendCmdData_r(ip_, Config.CMD_BOX_WIFI_2_AP,Config.LISTEN_TIME_OUT);
+				if(!isOk) h.sendEmptyMessage(MSG_CONNECT_ERROR);
+
+	}
+	public void testListItems(Handler handle){
+		if(!mUpdateList) return;
+		final Handler h = handle;
+		new Thread(new Runnable() {
+			public void run() {
+				testListItems_r();
+				h.sendEmptyMessageDelayed(MSG_REFRESH_UI, Config.LISTEN_TIME_OUT);
+			}
+		}).start();
+	}	
+	public void testListItems_r(){
+		final List<String> listDatas = mListBoxs;
+		for(String str:listDatas){
+				String ip = MsgUtils.getInfo(str, Config.CMD_BOX_IP);
+				if(ip == null) continue;
+				boolean isOnline = sendCmdData_r(ip, Config.CMD_TEST,2000);
+				if(!isOnline){
+					synchronized (mListBoxs) {
+						mListBoxs.remove(str);
+					}
+				}
+		}
+	}
+	@Override
+	protected void onStart() {
+		super.onStart();
+		mTextView.setText("Current AP is:  "+WifiUtils.getActiveSSID());
+		startUpdateList();
+	}
+	@Override
+	protected void onStop() {
+		super.onStop();
+		stopUpdateList();
+	}
+	private void startUpdateList(){
+		mUpdateList = true;
+		mPhoneHandle.sendEmptyMessage(MSG_REFRESH_UI);
+	}
+	private void stopUpdateList(){
+		mUpdateList = false;
+		mPhoneHandle.removeMessages(MSG_REFRESH_UI);
+	}
+
 	private Handler mPhoneHandle = new Handler(){
         public void handleMessage(Message msg) {
             if(MSG_REMOTE_INFO==msg.what){
@@ -266,6 +346,11 @@ public class PhoneActivity extends Activity {
             }else if(MSG_START_REFRESH == msg.what){
             	sendMulticast(Config.CMD_PHONE_REQUEST_ID);
             	sendEmptyMessageDelayed(MSG_START_REFRESH, 5000);
+            }else if(MSG_REFRESH_UI == msg.what){
+            	//testListItems(mPhoneHandle);
+            	mListAdapter.notifyDataSetChanged();
+            }else if(MSG_CONNECT_ERROR == msg.what){
+            	Toast.makeText(getApplicationContext(), "Sorry,connect error!", Toast.LENGTH_LONG).show();
             }
         }
     };
@@ -274,13 +359,14 @@ public class PhoneActivity extends Activity {
     	if(cmd==null) return;
     	if(Config.DEBUG) Log.i(TAG,"===============handleRemoteInfo=======>>msg cmd:"+cmd);
     	if(cmd.equals(Config.CMD_BOX_REPORT_ID)){
-    		mTextView.setText(msgutil.toString());
     		String tmp = msgutil.toString();
     		//tmp = tmp.replaceAll("#", "    ");
     		//tmp = tmp.replaceAll("=", ":");
     		//tmp = tmp.replaceAll("rptID", "");
     		//if(!mListBoxs.contains(tmp)){
-    			mListBoxs.add(tmp);
+	    		synchronized (mListBoxs) {
+	    			mListBoxs.add(tmp);
+				}
     			mListAdapter.notifyDataSetChanged();
     		//}
     		if(Config.DEBUG) Log.i(TAG,"===============CMD_BOX_REPORT_ID=======>>:"+msgutil.toString());

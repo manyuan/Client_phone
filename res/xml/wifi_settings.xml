@@ -22,6 +22,11 @@
             android:title="@string/wifi_quick_toggle_title"
             android:summary="@string/wifi_quick_toggle_summary"
             android:persistent="false" />
+    <CheckBoxPreference
+            android:key="only_box_ap"
+            android:title="only box ap"
+            android:summary="only display box ap"
+            android:persistent="false" />
 <!--
     <CheckBoxPreference
             android:key="notify_open_networks"

@@ -17,8 +17,10 @@
 package com.geniatech.client_phone.wifi;
 
 import com.geniatech.client_phone.Config;
+import com.geniatech.client_phone.NetAsyncTask;
 import com.geniatech.client_phone.PhoneActivity;
 import com.geniatech.client_phone.R;
+import com.geniatech.client_phone.WifiUtils;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -81,6 +83,9 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
 
     private AccessPoint mSelected;
     private WifiDialog mDialog;
+    
+    private boolean mListAll = false;
+    private CheckBoxPreference mListAllCheckBox;
 
     public WifiSettings() {
         mFilter = new IntentFilter();
@@ -113,6 +118,7 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
             addPreferencesFromResource(R.xml.wifi_settings);
             mWifiEnabler = new WifiEnabler(this,
                     (CheckBoxPreference) findPreference("enable_wifi"));
+            mListAllCheckBox = (CheckBoxPreference) findPreference("only_box_ap");
             /*
             mNotifyOpenNetworks =
                     (CheckBoxPreference) findPreference("notify_open_networks");
@@ -249,28 +255,59 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
             Secure.putInt(getContentResolver(),
                     Secure.WIFI_NETWORKS_AVAILABLE_NOTIFICATION_ON,
                     mNotifyOpenNetworks.isChecked() ? 1 : 0);
-        } else {
+        } else if(preference == mListAllCheckBox){
+        	mListAll = mListAllCheckBox.isChecked();
+        	updateAccessPoints();
+        }else {
             return super.onPreferenceTreeClick(screen, preference);
         }
         return true;
     }
-
+    public boolean sendCmdData(String ip,String info){
+		NetAsyncTask task = new NetAsyncTask(ip, info, this);
+		task.execute(1);
+		return true;
+	}
     public void onClick(DialogInterface dialogInterface, int button) {
         if (button == WifiDialog.BUTTON_FORGET && mSelected != null) {
             forget(mSelected.networkId);
         } else if (button == WifiDialog.BUTTON_SUBMIT && mDialog != null) {
             WifiConfiguration config = mDialog.getConfig();
-
+            
+            Log.i("","=========================4=============::"+mSelected.ssid);
+            if(!mSelected.ssid.contains("BOX_ID")){
+            	Log.i("","=========================5=============::"+WifiUtils.getGateway());
+            	String passwd = null;
+            	if (config == null || config.networkId != -1) {
+            		if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
+            			passwd = mSelected.getKey();
+                    }
+            	}else{
+            			passwd = config.preSharedKey;
+            	}
+            	sendCmdData(WifiUtils.getGateway(), 
+            			Config.CMD_BOX_AP_2_WIFI+"#"+
+            			Config.CMD_BOX_SSID+mSelected.ssid+"#"+
+            			Config.CMD_BOX_SEC_TYPE+"1" + "#" +
+            			Config.CMD_BOX_PASSWORD + passwd);
+            	try{
+            		Thread.sleep(2000);
+            	}catch(Exception e){}
+            }
+            
             if (config == null) {
+            	Log.i("","=========================1=============");
                 if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
                     connect(mSelected.networkId);
                 }
             } else if (config.networkId != -1) {
+            	Log.i("","=========================2=============");
                 if (mSelected != null) {
                     mWifiManager.updateNetwork(config);
                     saveNetworks();
                 }
             } else {
+            	Log.i("","=========================3=============");
                 int networkId = mWifiManager.addNetwork(config);
                 if (networkId != -1) {
                     mWifiManager.enableNetwork(networkId, false);
@@ -282,6 +319,7 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
                     }
                 }
             }
+            
         }
     }
 
@@ -402,7 +440,13 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
 
         mAccessPoints.removeAll();
         for (AccessPoint accessPoint : accessPoints) {
-            mAccessPoints.addPreference(accessPoint);
+        	if(!mListAll){
+        		mAccessPoints.addPreference(accessPoint);
+        	}else{
+        		if(accessPoint.ssid.contains("BOX_ID")){
+        			mAccessPoints.addPreference(accessPoint);
+        		}
+        	}
         }
     }
 

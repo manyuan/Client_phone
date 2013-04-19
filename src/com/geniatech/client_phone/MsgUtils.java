@@ -35,6 +35,21 @@ public class MsgUtils{
 		}
 		return null;
 	}
+	public static String getInfo(String msg,String info){
+		String[] cmds = null;
+		if(msg!=null){
+			cmds = msg.split("#");
+		}
+		if(cmds == null) return null;
+		
+		for(String data:cmds){
+			if(data.contains(info)){
+				String res = data.replace(info, "");
+				return res;
+			}
+		}
+		return null;
+	}
 	public static String getDefReportString(){
 		return Config.CMD_BOX_REPORT_ID + "#"
 				+Config.CMD_BOX_ID+"6666#"
