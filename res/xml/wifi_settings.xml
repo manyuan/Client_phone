@@ -24,8 +24,8 @@
             android:persistent="false" />
     <CheckBoxPreference
             android:key="only_box_ap"
-            android:title="only box ap"
-            android:summary="only display box ap"
+            android:title="Only Box AP"
+            android:summary="only display box softap"
             android:persistent="false" />
 <!--
     <CheckBoxPreference

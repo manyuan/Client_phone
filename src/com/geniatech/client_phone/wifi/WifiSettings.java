@@ -22,6 +22,7 @@ import com.geniatech.client_phone.PhoneActivity;
 import com.geniatech.client_phone.R;
 import com.geniatech.client_phone.WifiUtils;
 
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -263,8 +264,9 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         }
         return true;
     }
-    public boolean sendCmdData(String ip,String info){
+    public boolean sendCmdData(String ip,String info,Runnable runnable){
 		NetAsyncTask task = new NetAsyncTask(ip, info, this);
+		task.setRunnable(runnable);
 		task.execute(1);
 		return true;
 	}
@@ -272,57 +274,83 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         if (button == WifiDialog.BUTTON_FORGET && mSelected != null) {
             forget(mSelected.networkId);
         } else if (button == WifiDialog.BUTTON_SUBMIT && mDialog != null) {
-            WifiConfiguration config = mDialog.getConfig();
-            
-            Log.i("","=========================4=============::"+mSelected.ssid);
-            if(!mSelected.ssid.contains("BOX_ID")){
-            	Log.i("","=========================5=============::"+WifiUtils.getGateway());
-            	String passwd = null;
-            	if (config == null || config.networkId != -1) {
-            		if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
-            			passwd = mSelected.getKey();
-                    }
-            	}else{
-            			passwd = config.preSharedKey;
-            	}
-            	sendCmdData(WifiUtils.getGateway(), 
-            			Config.CMD_BOX_AP_2_WIFI+"#"+
-            			Config.CMD_BOX_SSID+mSelected.ssid+"#"+
-            			Config.CMD_BOX_SEC_TYPE+"1" + "#" +
-            			Config.CMD_BOX_PASSWORD + passwd);
-            	try{
-            		Thread.sleep(2000);
-            	}catch(Exception e){}
-            }
-            
-            if (config == null) {
-            	Log.i("","=========================1=============");
-                if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
-                    connect(mSelected.networkId);
-                }
-            } else if (config.networkId != -1) {
-            	Log.i("","=========================2=============");
-                if (mSelected != null) {
-                    mWifiManager.updateNetwork(config);
-                    saveNetworks();
-                }
-            } else {
-            	Log.i("","=========================3=============");
-                int networkId = mWifiManager.addNetwork(config);
-                if (networkId != -1) {
-                    mWifiManager.enableNetwork(networkId, false);
-                    config.networkId = networkId;
-                    if (mDialog.edit || requireKeyStore(config)) {
-                        saveNetworks();
-                    } else {
-                        connect(networkId);
-                    }
-                }
-            }
-            
+        	if(!mSelected.ssid.contains("BOX_ID")){
+        		showConnectDialog();
+            	mDialog.hide();
+        	}else{
+        		connect2wifi();
+        	}
+        	
         }
     }
-
+    private void showConnectDialog(){
+		final String boxStr = WifiUtils.getActiveSSID();
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setMessage("Also connect the box: \n        "+boxStr);
+		builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				connect2wifi();
+			}
+		});
+		builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				connectBox();
+				//connect2wifi();
+			}
+		});
+		builder.create().show();
+	}
+    private void connectBox(){
+    	WifiConfiguration config = mDialog.getConfig();
+    	
+        	Log.i("","=========================5=============::"+WifiUtils.getGateway());
+        	String passwd = null;
+        	if (config == null || config.networkId != -1) {
+        		if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
+        			passwd = mSelected.getKey();
+                }
+        	}else{
+        			passwd = config.preSharedKey;
+        	}
+        	Runnable runnable = new Runnable() {
+				public void run() {
+					connect2wifi();
+				}
+			};
+        	sendCmdData(WifiUtils.getGateway(), 
+        			Config.CMD_BOX_AP_2_WIFI+"#"+
+        			Config.CMD_BOX_SSID+mSelected.ssid+"#"+
+        			Config.CMD_BOX_SEC_TYPE+"1" + "#" +
+        			Config.CMD_BOX_PASSWORD + passwd,
+        			runnable);
+    }
+    private void connect2wifi(){
+        WifiConfiguration config = mDialog.getConfig();
+        if (config == null) {
+        	Log.i("","=========================1=============");
+            if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
+                connect(mSelected.networkId);
+            }
+        } else if (config.networkId != -1) {
+        	Log.i("","=========================2=============");
+            if (mSelected != null) {
+                mWifiManager.updateNetwork(config);
+                saveNetworks();
+            }
+        } else {
+        	Log.i("","=========================3=============");
+            int networkId = mWifiManager.addNetwork(config);
+            if (networkId != -1) {
+                mWifiManager.enableNetwork(networkId, false);
+                config.networkId = networkId;
+                if (mDialog.edit || requireKeyStore(config)) {
+                    saveNetworks();
+                } else {
+                    connect(networkId);
+                }
+            }
+        }
+    }
     private void showDialog(AccessPoint accessPoint, boolean edit) {
         if (mDialog != null) {
             mDialog.dismiss();

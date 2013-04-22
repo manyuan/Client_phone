@@ -14,6 +14,9 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.net.NetworkInfo;
+import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.MulticastLock;
 import android.os.AsyncTask;
@@ -22,9 +25,11 @@ import android.os.Handler;
 import android.os.Message;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView.OnItemClickListener;
@@ -42,6 +47,8 @@ public class PhoneActivity extends Activity {
 	public static final int MSG_REFRESH_UI = 2;
 	public static final int MSG_CONNECT_ERROR = 3;
 	
+	public static final String SPLIT_TAG = "\n    ";
+	
 	public static boolean mIsNetThreadRun=true;
 	private WifiManager mWifiManager;
 	private WifiUtils mWifiUtils;
@@ -55,6 +62,20 @@ public class PhoneActivity extends Activity {
 	private ArrayAdapter<String> mListAdapter;
 	DatagramSocket mMultiListenSocket = null;
 	private boolean mUpdateList = false;
+	private IntentFilter mIntentFilter;
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
+            	mTextView.setText("Current AP is:  "+WifiUtils.getActiveSSID());
+            } else if (WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
+            	mTextView.setText("Current AP is:  "+WifiUtils.getActiveSSID());
+            } else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)) {
+            	mTextView.setText("Current AP is:  "+WifiUtils.getActiveSSID());
+            }
+        }
+    };
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +88,11 @@ public class PhoneActivity extends Activity {
 		mMultiLock.acquire();
 		//mBoxServiceHandle.send
 		
+		mIntentFilter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
+        // The order matters! We really should not depend on this. :(
+        mIntentFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
+        mIntentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        
 		initViews();
 		multicastListen();
 		mPhoneHandle.sendEmptyMessageDelayed(MSG_START_REFRESH, 1000);
@@ -89,7 +115,7 @@ public class PhoneActivity extends Activity {
 	private void initViews(){
 		mListView = (ListView)findViewById(R.id.listview1);
 		mListBoxs = new ArrayList<String>();
-		mListBoxs.add("box devices:");
+		//mListBoxs.add("box devices:");
 		mListAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1, mListBoxs);
 		mListView.setAdapter(mListAdapter);
 		mListView.setOnItemClickListener(mListItemListener);
@@ -97,11 +123,11 @@ public class PhoneActivity extends Activity {
 		mRefreshBtn = (Button)findViewById(R.id.button1);
 		mRefreshBtn.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
-				mTextView.setText("Current AP is:  "+WifiUtils.getBroadcastIp());
+				//mTextView.setText("Current AP is:  "+WifiUtils.getBroadcastIp());
 				//sendCmdData("192.168.1.244","abcdefg1234567");
 				//sendCmdData("192.168.43.1", "abcdeffffffff");
 				mListBoxs.clear();
-				mListBoxs.add("box devices:");
+				//mListBoxs.add("box devices:");
 				mListAdapter.notifyDataSetChanged();
 				sendMulticast(Config.CMD_PHONE_REQUEST_ID);
 				
@@ -258,8 +284,9 @@ public class PhoneActivity extends Activity {
 		public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
 				long arg3) {
 			if(Config.DEBUG) Log.i(TAG,"==========listView===arg2:"+arg2+"===arg3:"+arg3);
-			if(arg2==0) return;
+			//if(arg2==0) return;
 			String str = mListBoxs.get(arg2);
+			str = str.replace(SPLIT_TAG, "#");
 			MsgUtils msg = new MsgUtils(str);
 			String ip = msg.getInfo(Config.CMD_BOX_IP);
 			showDialog(ip);
@@ -321,12 +348,14 @@ public class PhoneActivity extends Activity {
 	@Override
 	protected void onStart() {
 		super.onStart();
+		registerReceiver(mReceiver, mIntentFilter);
 		mTextView.setText("Current AP is:  "+WifiUtils.getActiveSSID());
 		startUpdateList();
 	}
 	@Override
 	protected void onStop() {
 		super.onStop();
+		unregisterReceiver(mReceiver);
 		stopUpdateList();
 	}
 	private void startUpdateList(){
@@ -338,6 +367,7 @@ public class PhoneActivity extends Activity {
 		mPhoneHandle.removeMessages(MSG_REFRESH_UI);
 	}
 
+
 	private Handler mPhoneHandle = new Handler(){
         public void handleMessage(Message msg) {
             if(MSG_REMOTE_INFO==msg.what){
@@ -345,7 +375,7 @@ public class PhoneActivity extends Activity {
             	handleRemoteInfo(msgutil);
             }else if(MSG_START_REFRESH == msg.what){
             	sendMulticast(Config.CMD_PHONE_REQUEST_ID);
-            	sendEmptyMessageDelayed(MSG_START_REFRESH, 5000);
+            	sendEmptyMessageDelayed(MSG_START_REFRESH, Config.REFRESH_LIST_TIME);
             }else if(MSG_REFRESH_UI == msg.what){
             	//testListItems(mPhoneHandle);
             	mListAdapter.notifyDataSetChanged();
@@ -362,7 +392,8 @@ public class PhoneActivity extends Activity {
     		String tmp = msgutil.toString();
     		//tmp = tmp.replaceAll("#", "    ");
     		//tmp = tmp.replaceAll("=", ":");
-    		//tmp = tmp.replaceAll("rptID", "");
+    		tmp = tmp.replaceAll("rptID#", "    ");
+    		tmp = tmp.replaceAll("#", SPLIT_TAG);
     		//if(!mListBoxs.contains(tmp)){
 	    		synchronized (mListBoxs) {
 	    			mListBoxs.add(tmp);

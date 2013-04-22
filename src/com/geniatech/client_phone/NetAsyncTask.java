@@ -13,6 +13,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
+import android.widget.Toast;
 
 public class NetAsyncTask extends AsyncTask<Integer, Integer, String> {
 	private static final String TAG = "NetAsyncTask";
@@ -20,28 +21,40 @@ public class NetAsyncTask extends AsyncTask<Integer, Integer, String> {
     private ProgressDialog mDialog;
     private String mIP;
     private String mInfo;
+    private Context mContext;
+    private Runnable mRunnable = null;
     public NetAsyncTask(String ip, String info,Context cntx) {  
         super();  
         this.mIP = ip;
         mInfo = info;
-        this.mDialog = new ProgressDialog(cntx);
+        mContext = cntx;
+        this.mDialog = new ProgressDialog(mContext);
     }  
 
+    public void setRunnable(Runnable runable){
+    	mRunnable = runable;
+    }
     @Override  
-    protected String doInBackground(Integer... params) {  
+    protected String doInBackground(Integer... params) {
+    	boolean isOK = false;
         if(mIP == null || mIP.equals("0.0.0.0")){
         	multicastListen_r(mInfo);
+        	isOK = true;
         }else{
-        	sendCmdData_r(mIP,mInfo,Config.LISTEN_TIME_OUT);
+        	isOK = sendCmdData_r(mIP,mInfo,Config.LISTEN_TIME_OUT);
         }
-        return "abd";  
+        if(isOK) return "true";
+        else return "false";
     }  
   
     @Override  
     protected void onPostExecute(String result){
-    	mDialog.setMessage("send complete.");
-    	mDialog.show();
-    	delay(DIALOG_TIME);
+    	if(result.equals("true")){
+	    	mDialog.setMessage("send complete.");
+	    	if(mRunnable!=null) mRunnable.run();
+    	}else{
+    		Toast.makeText(mContext, "Network Connect Error!!", Toast.LENGTH_LONG).show();
+    	}
     	mDialog.dismiss();
     }  
     
@@ -52,7 +65,7 @@ public class NetAsyncTask extends AsyncTask<Integer, Integer, String> {
     }
     
     @Override  
-    protected void onProgressUpdate(Integer... values) {  
+    protected void onProgressUpdate(Integer... values) {
          
     }
     
@@ -62,12 +75,12 @@ public class NetAsyncTask extends AsyncTask<Integer, Integer, String> {
     }
     private static boolean sendCmdData_r(String ip,String info,int timeout){
 		boolean isSend = true;
-        Socket socket = null;  
-        BufferedReader br = null;  
-        PrintWriter pw = null;  
+        Socket socket = null;
+        BufferedReader br = null;
+        PrintWriter pw = null;
         try {
             socket = new Socket(ip, Config.DATA_PORT);
-            socket.setSoTimeout(timeout);
+            //socket.setSoTimeout(timeout);
             if(Config.DEBUG) Log.i(TAG,"--------------------------Socket=" + socket);
             br = new BufferedReader(new InputStreamReader(  
                     socket.getInputStream()));  

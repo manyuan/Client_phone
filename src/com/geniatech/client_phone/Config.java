@@ -12,6 +12,7 @@ public class Config{
 	public static final int REPORT_TIME = 2;
 	public static final int WAIT_WIFI_TIME = 20;  //20s
 	public static final int LISTEN_TIME_OUT = 3000; //3s
+	public static int REFRESH_LIST_TIME = 5000;  // the time of auto send broadcast.
 	
 	public static final String DEF_AP_SSID = "BOX_ID_1234";
 	public static final String DEF_AP_PASSWORD = "12345678";
