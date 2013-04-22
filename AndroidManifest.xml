@@ -73,7 +73,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".wifi.WifiSettings"
-                android:label="@string/wifi_settings"
+                android:label="@string/app_name"
                 android:configChanges="orientation|keyboardHidden"
                 android:clearTaskOnLaunch="true"
                 >

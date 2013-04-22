@@ -1,7 +1,7 @@
 package com.geniatech.client_phone;
 
 public class Config{
-	public static final boolean DEBUG=true;
+	public static final boolean DEBUG = false;
 	
 	public static final String MULTICAST_HOST = "224.0.0.0";
 	//public static final String MULTICAST_SEND_HOST = "192.168.1.255";

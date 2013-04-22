@@ -89,7 +89,6 @@ public class PhoneActivity extends Activity {
 		//mBoxServiceHandle.send
 		
 		mIntentFilter = new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
-        // The order matters! We really should not depend on this. :(
         mIntentFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
         mIntentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         
@@ -242,7 +241,6 @@ public class PhoneActivity extends Activity {
             isSend = false;
         } finally {
             try {
-                System.out.println("close......");
                 if(br!=null) br.close();
                 if(pw!=null) pw.close();
                 if(socket!=null) socket.close();
@@ -270,7 +268,7 @@ public class PhoneActivity extends Activity {
             DatagramPacket packet = new DatagramPacket(data, data.length);
             mMultiListenSocket.receive(packet);
             message = new String(packet.getData(), 0, packet.getLength());
-            System.out.println(message);
+            if(Config.DEBUG) Log.i(TAG,"----------------------multicastListen_r data:"+ message);
             mMultiListenSocket.close();
         } catch (Exception e) {
             e.printStackTrace();
@@ -394,12 +392,12 @@ public class PhoneActivity extends Activity {
     		//tmp = tmp.replaceAll("=", ":");
     		tmp = tmp.replaceAll("rptID#", "    ");
     		tmp = tmp.replaceAll("#", SPLIT_TAG);
-    		//if(!mListBoxs.contains(tmp)){
+    		if(!mListBoxs.contains(tmp)){
 	    		synchronized (mListBoxs) {
 	    			mListBoxs.add(tmp);
 				}
     			mListAdapter.notifyDataSetChanged();
-    		//}
+    		}
     		if(Config.DEBUG) Log.i(TAG,"===============CMD_BOX_REPORT_ID=======>>:"+msgutil.toString());
     	}
     }
