@@ -94,7 +94,7 @@ public class PhoneActivity extends Activity {
         
 		initViews();
 		multicastListen();
-		mPhoneHandle.sendEmptyMessageDelayed(MSG_START_REFRESH, 1000);
+		mPhoneHandle.sendEmptyMessageDelayed(MSG_START_REFRESH, 500);
 	}
 	
 	@Override

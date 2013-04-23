@@ -76,7 +76,7 @@ class AccessPoint extends Preference {
         setWidgetLayoutResource(R.layout.preference_widget_wifi_signal);
         ssid = (config.SSID == null ? "" : removeDoubleQuotes(config.SSID));
         security = getSecurity(config);
-        networkId = config.networkId;
+        networkId = -1;//config.networkId;
         mConfig = config;
         mRssi = Integer.MAX_VALUE;
     }

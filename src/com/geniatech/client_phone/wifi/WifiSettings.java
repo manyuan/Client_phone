@@ -264,7 +264,9 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         }
         return true;
     }
+    
     public boolean sendCmdData(String ip,String info,Runnable runnable){
+    	Log.i("sendCmdData","-------------------------------------info:"+info);
 		NetAsyncTask task = new NetAsyncTask(ip, info, this);
 		task.setRunnable(runnable);
 		task.execute(1);
@@ -280,7 +282,6 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         	}else{
         		connect2wifi();
         	}
-        	
         }
     }
     private void showConnectDialog(){
@@ -306,9 +307,7 @@ public class WifiSettings extends PreferenceActivity implements DialogInterface.
         	Log.i("","=========================5=============::"+WifiUtils.getGateway());
         	String passwd = null;
         	if (config == null || config.networkId != -1) {
-        		if (mSelected != null && !requireKeyStore(mSelected.getConfig())) {
-        			passwd = mSelected.getKey();
-                }
+        		Log.i("","=========================6 error!!=============---");
         	}else{
         			passwd = config.preSharedKey;
         	}
